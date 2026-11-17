@@ -20,6 +20,7 @@
 #include <time.h>
 #include <unistd.h>
 #include "alt111.h"
+#include "alt111_geometry.h"
 #include "alt111_tcp_nodelay.h"
 #include "alt111_bridge_status.h"
 #include "alt111_zoom.h"
@@ -1191,11 +1192,34 @@ static void load_nav_config(struct mibr_nav_config *cfg)
         snprintf(cfg->maneuver,sizeof(cfg->maneuver),"%s",v);
 }
 
+/* 1 when the registry key comes from a stored layer (persistent or temp), 0
+ * when it is only the compiled profile default or no snapshot exists. */
+static unsigned settings_key_stored(const char *key)
+{
+    struct gen2_settings_scope *scope=settings_scope();
+    const struct alt111_settings *snapshot;
+    unsigned stored=0u;
+    int id;
+    pthread_mutex_lock(&g_settings_lock);
+    snapshot=scope ? &scope->settings : g_settings_have ? &g_settings_desired : NULL;
+    id=alt111_setting_find(key);
+    if(snapshot&&id>=0&&snapshot->layer[id]!=ALT111_PROFILE)stored=1u;
+    pthread_mutex_unlock(&g_settings_lock);
+    return stored;
+}
+
+/* The registry profile defaults describe the 1010x376 reference only. For any
+ * other display size they must not override the size-aware compiled defaults. */
+static int display_is_registry_reference(const struct mibr_display_config *d)
+{
+    return d->width==MIBR_DISPLAY_WIDTH_DEFAULT && d->height==MIBR_DISPLAY_HEIGHT_DEFAULT;
+}
+
 static void load_display_config(struct mibr_display_config *cfg)
 {
     char blob[768],v[128];
     unsigned layer=0u;
-    int n;
+    int n,height_mm_set=0,env_set;
     if(!cfg)return;
     memset(cfg,0,sizeof(*cfg));
     cfg->width=MIBR_DISPLAY_WIDTH_DEFAULT;
@@ -1203,56 +1227,82 @@ static void load_display_config(struct mibr_display_config *cfg)
     cfg->width_mm=MIBR_DISPLAY_WIDTH_MM_DEFAULT;
     cfg->height_mm=MIBR_DISPLAY_HEIGHT_MM_DEFAULT;
     snprintf(cfg->uuid,sizeof(cfg->uuid),"%s",ALT_UUID_DEFAULT);
-    if(read_layered_value(g_display_config_name,blob,sizeof(blob),&layer)!=0)return;
+
+    /* Profile-bound source size: patch_carplay.sh exports ALTSCREEN111_WIDTH/
+     * HEIGHT from altscreen111.conf. Without them the 1010x376 reference stays. */
+    n=env_i("ALTSCREEN111_WIDTH",0);
+    if(n>0 && n<=4096)cfg->width=n;
+    n=env_i("ALTSCREEN111_HEIGHT",0);
+    if(n>0 && n<=2160)cfg->height=n;
+    n=env_i("ALTSCREEN111_WIDTH_MM",0);
+    if(n>0 && n<=2000)cfg->width_mm=n;
+    n=env_i("ALTSCREEN111_HEIGHT_MM",0);
+    if(n>0 && n<=2000){cfg->height_mm=n;height_mm_set=1;}
+    env_set=cfg->width!=MIBR_DISPLAY_WIDTH_DEFAULT || cfg->height!=MIBR_DISPLAY_HEIGHT_DEFAULT;
+
+    if(read_layered_value(g_display_config_name,blob,sizeof(blob),&layer)!=0)goto derive;
     cfg->source_layer=layer;
 
-    if(config_line_int(blob,"widthPixels",&n)==0 && n>0 && n<=4096)cfg->width=n;
-    if(config_line_int(blob,"heightPixels",&n)==0 && n>0 && n<=2160)cfg->height=n;
-    if(config_line_int(blob,"widthPhysical",&n)==0 && n>0 && n<=2000)cfg->width_mm=n;
-    if(config_line_int(blob,"heightPhysical",&n)==0 && n>0 && n<=2000)cfg->height_mm=n;
+    /* The registry pins the 1010x376 reference as a read-only profile default:
+     * it only wins over a size from the environment when it was stored. */
+    if(!env_set || settings_key_stored("display.widthPixels")){
+        if(config_line_int(blob,"widthPixels",&n)==0 && n>0 && n<=4096)cfg->width=n;
+    }
+    if(!env_set || settings_key_stored("display.heightPixels")){
+        if(config_line_int(blob,"heightPixels",&n)==0 && n>0 && n<=2160)cfg->height=n;
+    }
+    if(!env_set || settings_key_stored("display.widthPhysical")){
+        if(config_line_int(blob,"widthPhysical",&n)==0 && n>0 && n<=2000)cfg->width_mm=n;
+    }
+    if(!env_set || settings_key_stored("display.heightPhysical")){
+        if(config_line_int(blob,"heightPhysical",&n)==0 && n>0 && n<=2000){
+            cfg->height_mm=n;
+            height_mm_set=1;
+        }
+    }
     if(config_line_value(blob,"uuid",v,sizeof(v))==0 && strlen(v)==36u)
         snprintf(cfg->uuid,sizeof(cfg->uuid),"%s",v);
+derive:
+    /* Without an explicit physical height keep square pixels: the compiled 74 mm
+     * only fits 1010x376 (200*376/1010 = 74). For any other size derive it from
+     * the pixel ratio; the 1010x376 behavior stays exactly as before. The
+     * physical width itself is not measured for any size but the reference. */
+    if(!height_mm_set && cfg->width_mm>0 && !display_is_registry_reference(cfg)){
+        int derived=(int)(((long)cfg->width_mm*cfg->height)/cfg->width);
+        if(derived>0 && derived<=2000)cfg->height_mm=derived;
+    }
 }
 
 static void viewareas_defaults(struct mibr_viewareas_config *cfg)
 {
     struct mibr_display_config display;
+    const struct alt111_geom_preset *preset;
+    int i;
     load_display_config(&display);
+    preset=alt111_geom_find(display.width,display.height);
     memset(cfg,0,sizeof(*cfg));
     cfg->enabled=1u;
     cfg->count=2u;
     cfg->initial=0u;
     cfg->transition_ms=0u;
 
-    cfg->view[0].x=0; cfg->view[0].y=0;
-    cfg->view[0].w=display.width; cfg->view[0].h=display.height;
-    cfg->view[0].safe_x=0; cfg->view[0].safe_y=0;
-    cfg->view[0].safe_w=display.width; cfg->view[0].safe_h=display.height;
-    cfg->view[0].adjacent=1;
-
-    cfg->view[1].x=0; cfg->view[1].y=0;
-    cfg->view[1].w=display.width; cfg->view[1].h=display.height;
-    cfg->view[1].safe_x=0; cfg->view[1].safe_y=0;
-    cfg->view[1].safe_w=display.width; cfg->view[1].safe_h=display.height;
-    if(display.width==1010 && display.height==376){
-        cfg->view[1].safe_y=58;
-        cfg->view[1].safe_w=1010;
-        cfg->view[1].safe_h=248;
+    /* Three areas share the outer rectangle; they differ only in the nested
+     * SafeArea. Without a preset row for this size every area keeps the full
+     * canvas. View 0 is always the full canvas; view 1 is the "voll" band and
+     * view 2 the narrow "center" band between the dials. */
+    for(i=0;i<3;++i){
+        cfg->view[i].x=0; cfg->view[i].y=0;
+        cfg->view[i].w=display.width; cfg->view[i].h=display.height;
+        cfg->view[i].safe_x=0; cfg->view[i].safe_y=0;
+        cfg->view[i].safe_w=display.width; cfg->view[i].safe_h=display.height;
+        if(preset&&i>0){
+            cfg->view[i].safe_x=preset->safe[i].x;
+            cfg->view[i].safe_y=preset->safe[i].y;
+            cfg->view[i].safe_w=preset->safe[i].w;
+            cfg->view[i].safe_h=preset->safe[i].h;
+        }
+        cfg->view[i].adjacent=(i==0)?1:0;
     }
-    cfg->view[1].adjacent=0;
-
-    /* Third area "Center" (three-view line): same ViewArea, the narrow safe band between the dials. */
-    cfg->view[2].x=0; cfg->view[2].y=0;
-    cfg->view[2].w=display.width; cfg->view[2].h=display.height;
-    cfg->view[2].safe_x=0; cfg->view[2].safe_y=0;
-    cfg->view[2].safe_w=display.width; cfg->view[2].safe_h=display.height;
-    if(display.width==1010 && display.height==376){
-        cfg->view[2].safe_x=370;
-        cfg->view[2].safe_y=58;
-        cfg->view[2].safe_w=256;
-        cfg->view[2].safe_h=248;
-    }
-    cfg->view[2].adjacent=0;
 }
 
 /* Host tests point these at a temporary directory. */
@@ -1334,11 +1384,12 @@ static void apply_safe_override(struct mibr_viewareas_config *cfg,int i,const ch
 static void load_viewareas_config(struct mibr_viewareas_config *cfg)
 {
     struct mibr_display_config display;
-    char blob[2048],key[64];
+    char blob[2048],key[64],regkey[64];
     unsigned layer=0u;
-    int n,i;
+    int n,i,reference;
     if(!cfg)return;
     load_display_config(&display);
+    reference=display_is_registry_reference(&display);
     viewareas_defaults(cfg);
     if(read_layered_value(g_viewareas_config_name,blob,sizeof(blob),&layer)!=0)return;
     cfg->source_layer=layer;
@@ -1349,9 +1400,12 @@ static void load_viewareas_config(struct mibr_viewareas_config *cfg)
     if(config_line_int(blob,"transition_ms",&n)==0 && n>=0 && n<=5000)cfg->transition_ms=(unsigned)n;
 
     for(i=0;i<3;++i){
+/* Outside the 1010x376 reference the registry profile defaults are not
+ * geometry-aware: take an area field from the registry only when stored. */
 #define GET_VA_INT(field,target) do { \
         snprintf(key,sizeof(key),"view%d." field,i); \
-        if(config_line_int(blob,key,&n)==0)(target)=n; \
+        snprintf(regkey,sizeof(regkey),"viewarea.%d." field,i); \
+        if((reference||settings_key_stored(regkey)) && config_line_int(blob,key,&n)==0)(target)=n; \
     } while(0)
         GET_VA_INT("x",cfg->view[i].x);
         GET_VA_INT("y",cfg->view[i].y);

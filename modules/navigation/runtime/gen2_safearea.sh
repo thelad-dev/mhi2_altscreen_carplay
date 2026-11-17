@@ -4,8 +4,13 @@ set -u
 MIBR_ROOT=${MIBR_ROOT:-/mnt/app/root/mibr}
 ROOT=$MIBR_ROOT/config/cockpit
 CONF=$ROOT/mibr-carplay111-safearea.conf
+CARPLAY_CONF=$MIBR_ROOT/config/carplay/altscreen111.conf
+# Canvas size of the Stream-111 display. 1010x376 is the MU1440 reference and
+# stays the default; a profile with another size (for example 800x480) states it
+# in altscreen111.conf, the same file the GEN2 launcher reads.
 FULL_W=1010
 FULL_H=376
+FULL_SRC=default
 RW=0
 
 usage(){
@@ -42,6 +47,30 @@ is_uint(){
     ''|*[!0-9]*) return 1 ;;
     *) return 0 ;;
   esac
+}
+
+# Take the canvas size from altscreen111.conf when it names one. Both values
+# must be plain integers in range; anything else stops instead of guessing.
+load_full_size(){
+  [ -r "$CARPLAY_CONF" ] || return 0
+  cw=
+  ch=
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in
+      ALTSCREEN111_WIDTH=*) cw=${line#ALTSCREEN111_WIDTH=} ;;
+      ALTSCREEN111_HEIGHT=*) ch=${line#ALTSCREEN111_HEIGHT=} ;;
+    esac
+  done < "$CARPLAY_CONF"
+  [ -z "$cw" ] && [ -z "$ch" ] && return 0
+  if is_uint "$cw" && is_uint "$ch" && [ "$cw" -ge 100 ] && [ "$cw" -le 4096 ] &&
+     [ "$ch" -ge 60 ] && [ "$ch" -le 2160 ]; then
+    FULL_W=$cw
+    FULL_H=$ch
+    FULL_SRC=altscreen111.conf
+    return 0
+  fi
+  echo "GEN2_SAFEAREA=FAIL_CANVAS_SIZE conf=$CARPLAY_CONF width=$cw height=$ch"
+  exit 14
 }
 
 validate_rect(){
@@ -108,10 +137,28 @@ show_status(){
   echo "=== GEN2 SAFEAREA ==="
   echo "full_width=$FULL_W"
   echo "full_height=$FULL_H"
+  echo "full_source=$FULL_SRC"
   echo "config=$CONF"
   if [ -r "$CONF" ]; then
     echo "configured=1"
     cat "$CONF"
+    sx=
+    sy=
+    sw=
+    sh=
+    while IFS= read -r line || [ -n "$line" ]; do
+      case "$line" in
+        x=*) sx=${line#x=} ;;
+        y=*) sy=${line#y=} ;;
+        w=*) sw=${line#w=} ;;
+        h=*) sh=${line#h=} ;;
+      esac
+    done < "$CONF"
+    if validate_rect "$sx" "$sy" "$sw" "$sh"; then
+      echo "configured_in_range=1"
+    else
+      echo "configured_in_range=0"
+    fi
   else
     echo "configured=0"
     echo "x=0"
@@ -121,6 +168,8 @@ show_status(){
   fi
   echo "apply=next_altScreen_info_handshake"
 }
+
+load_full_size
 
 cmd=${1:-status}
 case "$cmd" in

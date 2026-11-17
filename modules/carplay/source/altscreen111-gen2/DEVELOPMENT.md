@@ -50,3 +50,23 @@ the third view is qualified on every MU1440 unit.
 The source tree retains the four runtime boundaries: the Type-111 hook, `parity-session`,
 `direct-ts-parity`, and the DisplayManager arbitration guard remain separate components. This library
 does not take ownership of parity lifecycle or MOST writes.
+
+## Display size and SafeArea presets
+
+The GEN2 adapter advertises the display size from the profile-bound environment
+(`ALTSCREEN111_WIDTH`/`ALTSCREEN111_HEIGHT`/`_MM`, exported by `patch_carplay.sh` from
+`config/carplay/altscreen111.conf`), and 1010x376 stays the default. A stored registry value
+still wins over the environment; the registry's read-only profile defaults describe the
+1010x376 reference only and are ignored for any other size, for the display fields and for the
+ViewArea geometry fields.
+
+Compiled SafeArea presets per size live in `include/alt111_geometry.h`. The 1010x376 row is the
+unchanged MU1440 reference. The 800x480 row is **derived, not scaled**, and **SOURCE evidence only**:
+no calibration photo, DMDT value or vehicle trace exists for this size, so every value is
+provisional and the rules are in the header. A size without a row keeps the full canvas for all
+areas. Precedence is unchanged: menu choice, stored registry value, platform `defaults.conf`
+(`modules/navigation/source/platform-defaults/vw-mu1367.conf` for 800x480), compiled preset.
+
+Host checks (no vehicle behavior): `tests/test_gen2_geometry.c` (build like
+`tests/alt111_gen2_settings_session_test.c`, argument: the `vw-mu1367.conf` path),
+`tests/test_geometry_profile_files.py`, `tests/test_gen2_safearea_canvas.py`.
