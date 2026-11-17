@@ -4,7 +4,8 @@ set -u
 MIBR_ROOT=${MIBR_ROOT:-/mnt/app/root/mibr}
 ROOT=$MIBR_ROOT/config/cockpit
 CONF=$ROOT/mibr-carplay111-safearea.conf
-CARPLAY_CONF=$MIBR_ROOT/config/carplay/altscreen111.conf
+CARPLAY_DIR=$MIBR_ROOT/config/carplay
+CARPLAY_CONF=$CARPLAY_DIR/altscreen111.conf
 # Canvas size of the Stream-111 display. 1010x376 is the MU1440 reference and
 # stays the default; a profile with another size (for example 800x480) states it
 # in altscreen111.conf, the same file the GEN2 launcher reads.
