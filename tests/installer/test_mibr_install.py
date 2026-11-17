@@ -245,6 +245,45 @@ class TestInstall(Base):
         self.assertEqual(r.returncode, 3, r.stdout)
         self.assertEqual(before, self.unit_tree())
 
+    def _optional_profile_list(self, jxe_hash):
+        """profiles.list as shipped for the optional vw-mu1367-k4525 profile plus the skoda test row."""
+        shipped = (REPO / "installer/config/profiles.list").read_text().splitlines()
+        row = [x for x in shipped if " vw-mu1367-k4525 " in x]
+        self.assertEqual(len(row), 1, "shipped profiles.list must carry exactly one optional vw row")
+        zero_digest = row[0].split()[0]
+        lines = ["# test"]
+        lines.append(row[0] if jxe_hash is None else "%s vw-mu1367-k4525 - 0" % jxe_hash)
+        lines.append("%s %s %s 1" % ("f" * 64, PROFILE, self.train_listed))
+        return zero_digest, ("\n".join(lines) + "\n").encode()
+
+    def test_optional_profile_unknown_hash_stops_with_exit_3(self):
+        # The shipped placeholder row matches no real lsd.jxe: select-profile exits 4 (UNKNOWN),
+        # mibr-install must stop with exit 3 in --check and --apply before any write.
+        _, listing = self._optional_profile_list(None)
+        self.build_package(extra={"installer/config/profiles.list": listing})
+        before = self.unit_tree()
+        for args in (("--check",), ("--apply",), ()):
+            r = self.run_inst(*args)
+            self.assertEqual(r.returncode, 3, r.stdout + r.stderr)
+            self.assertIn("profile selection failed", r.stdout + r.stderr)
+            self.assertIn("exit 4", r.stdout + r.stderr)
+            self.assertEqual(before, self.unit_tree())
+        self.assertNoLeftovers()
+
+    def test_optional_profile_install_disabled_stops_with_exit_3(self):
+        # A matching hash for the optional profile must still be refused while install_enabled=0
+        # (select-profile exit 6), again with exit 3 and no write.
+        zero_digest, listing = self._optional_profile_list(sh(JXE))
+        self.assertEqual(zero_digest, "0" * 64)
+        self.build_package(extra={"installer/config/profiles.list": listing})
+        before = self.unit_tree()
+        for args in (("--check",), ("--apply",)):
+            r = self.run_inst(*args)
+            self.assertEqual(r.returncode, 3, r.stdout + r.stderr)
+            self.assertIn("exit 6", r.stdout + r.stderr)
+            self.assertEqual(before, self.unit_tree())
+        self.assertNoLeftovers()
+
     def test_package_tamper_no_write(self):
         before = self.unit_tree()
         (self.pkg / "common/carplay/bin/alt-tool").write_bytes(b"tampered\n")
