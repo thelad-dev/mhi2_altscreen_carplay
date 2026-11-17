@@ -1,0 +1,2 @@
+# target stock-sha expected-patched-sha transform-file transform-sha mode
+# MISSING_INPUT: no stock or patched hashes are known for this firmware; no entries by design.
