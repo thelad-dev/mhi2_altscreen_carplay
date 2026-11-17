@@ -319,6 +319,13 @@ load_altscreen_config(){
   case "$ALTSCREEN111_PORT:$ALTSCREEN111_TEE_PORT:$ALTSCREEN111_WIDTH:$ALTSCREEN111_HEIGHT:$ALTSCREEN111_FPS:$ALTSCREEN111_AUTO_SHOW:$DIRECT_OUTPUT_FPS:$DIRECT_PACE:$DIRECT_PACE_BUFFER" in
     *[!0-9:]*|'') log "ERROR invalid numeric AltScreen/direct output config"; return 1 ;;
   esac
+  # Same bounds as the GEN2 library accepts for the display size; an out-of-range
+  # value would be ignored there and leave the launcher and the library disagreeing.
+  [ "$ALTSCREEN111_WIDTH" -ge 100 ] && [ "$ALTSCREEN111_WIDTH" -le 4096 ] &&
+  [ "$ALTSCREEN111_HEIGHT" -ge 60 ] && [ "$ALTSCREEN111_HEIGHT" -le 2160 ] || {
+    log "ERROR ALTSCREEN111_WIDTH/HEIGHT out of range: ${ALTSCREEN111_WIDTH}x${ALTSCREEN111_HEIGHT}"
+    return 1
+  }
   case "$DIRECT_OUTPUT_FPS" in
     20|25|30) ;;
     *) log "ERROR DIRECT_OUTPUT_FPS must be 20, 25 or 30"; return 1 ;;
