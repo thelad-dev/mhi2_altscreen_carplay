@@ -2,7 +2,7 @@
   "schema_version": 1,
   "contract": "docs/architecture/REPOSITORY_LAYOUT.md",
   "lifecycle": "migration-in-progress",
-  "notes": "Canonical shared modules; three firmware profiles included equally in the beta release graph. Per-firmware Java bindings remain separately editable.",
+  "notes": "Canonical shared modules; three firmware profiles included equally in the beta release graph (optional profiles are listed separately and are not part of it). Per-firmware Java bindings remain separately editable.",
   "modules": {
     "carplay": {
       "status": "indexed",
@@ -121,7 +121,10 @@
     "seat-mu1409-p4708",
     "seat-mu1447-p4709"
   ],
-  "profile_status": "All three beta profiles structurally present, common beta release-plan generated; target-specific compiled artifacts and assembled multi-target ZIP remain to be built.",
+  "optional_profiles": [
+    "vw-mu1367-k4525"
+  ],
+  "profile_status": "All three beta profiles structurally present, common beta release-plan generated; target-specific compiled artifacts and assembled multi-target ZIP remain to be built. The optional profile vw-mu1367-k4525 is a placeholder without selector hash (install disabled) and outside the required package.",
   "shared_orchestration": [
     "tools/build_mu1440_source.sh",
     "tools/validate_modular_package.py"

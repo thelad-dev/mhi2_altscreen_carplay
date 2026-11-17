@@ -6,6 +6,7 @@ This is a source-layout gate, not a QNX build, release packager, or vehicle test
 import argparse
 import copy
 import json
+import sys
 from pathlib import Path, PurePosixPath
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -19,6 +20,20 @@ def path_valid(value):
         return False
     p = PurePosixPath(value)
     return not p.is_absolute() and ".." not in p.parts and "." not in value.split("/")
+
+
+def check_profile_lists(doc, root=ROOT):
+    """modules/module-index.json profile lists must follow release_inclusion in profile.json."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    import check_profiles
+    docs = check_profiles.load_profiles(root)
+    errors = []
+    for key, want in (("profiles", check_profiles.required_ids(docs)),
+                      ("optional_profiles", check_profiles.optional_ids(docs))):
+        got = doc.get(key, [])
+        if not isinstance(got, list) or sorted(got) != want:
+            errors.append(f"{key} must equal the profiles with matching release_inclusion: {want}")
+    return errors
 
 
 def validate(doc, root=ROOT, check_files=True):
@@ -82,6 +97,11 @@ def validate(doc, root=ROOT, check_files=True):
     profiles = doc.get("profiles")
     if not isinstance(profiles, list) or len(profiles) != len(set(profiles)):
         errors.append("profiles must be unique")
+    optional = doc.get("optional_profiles", [])
+    if not isinstance(optional, list) or len(optional) != len(set(optional)) or set(optional) & set(profiles or ()):
+        errors.append("optional_profiles must be unique and disjoint from profiles")
+    if check_files:
+        errors.extend(check_profile_lists(doc, root))
     return errors
 
 
@@ -119,6 +139,13 @@ def self_test(doc):
     altered = copy.deepcopy(doc)
     altered["modules"]["carplay"]["source"].append("../unsafe")
     assert any("unsafe" in e for e in validate(altered, check_files=False))
+    altered = copy.deepcopy(doc)
+    altered["profiles"].append(altered["optional_profiles"][0])
+    assert any("optional_profiles" in e for e in validate(altered, check_files=False))
+    assert any("profiles must equal" in e for e in validate(altered))
+    altered = copy.deepcopy(doc)
+    altered["optional_profiles"] = []
+    assert any("optional_profiles must equal" in e for e in validate(altered))
     affected, unowned = impact(doc, ["modules/broker/source/mibr-control/mibr_v3_service.c"])
     assert affected == ["broker", "menu", "navigation"] and not unowned
     affected, unowned = impact(doc, ["modules/carplay/source/unknown-core/new.c"])

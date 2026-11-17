@@ -75,7 +75,9 @@ def build_plan(root=ROOT):
     index = json.loads((root / "modules/module-index.json").read_text(encoding="utf-8"))
     expected = index["profiles"]
     present = {p.name for p in (root / "modules/profiles").iterdir() if p.is_dir()}
-    errors = [] if set(expected) == present else ["profile directory/declared profile mismatch"]
+    # Optional profiles live beside the required ones but never enter the beta plan.
+    declared = set(expected) | set(index.get("optional_profiles", []))
+    errors = [] if declared == present else ["profile directory/declared profile mismatch"]
     profiles = check_profiles.load_profiles(root)
     errors.extend(check_profiles.validate_all(profiles))
     resolved = []

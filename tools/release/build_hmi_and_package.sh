@@ -6,6 +6,9 @@ set -euo pipefail
 ROOT="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)"
 ROOT_REAL="$(cd "$ROOT" && pwd -P)"
 BUILD_SCRIPT="$ROOT/modules/menu/source/build.sh"
+# Required beta profiles only. Optional profiles (release_inclusion "optional", e.g.
+# vw-mu1367-k4525) are not built or packaged here: they have no private HMI inputs and are
+# assembled only explicitly via build_modular.py --profiles <id> --scope single-profile.
 PROFILES=(skoda-mu1440-p4526 seat-mu1409-p4708 seat-mu1447-p4709)
 
 : "${J9_HOME:?MISSING_INPUT: set J9_HOME to the locally provisioned IBM J9 SDK}"

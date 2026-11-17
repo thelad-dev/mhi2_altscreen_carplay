@@ -20,6 +20,9 @@ ENABLING = ("unit_measured", "firmware_corpus")
 ADAPTER_STATUS = ("none", "source", "built", "unit_tested")
 JAR_STATUS = ("to_confirm", "confirmed")
 FW_STATUS = ("defined", "to_define")
+# "required" profiles form the default beta package; "optional" profiles are only built
+# explicitly (--scope single-profile) and are never part of the required package.
+INCLUSION = ("required", "optional")
 PID = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)+$")
 
 
@@ -34,6 +37,16 @@ def load_profiles(root=ROOT):
     return out
 
 
+def required_ids(profiles):
+    """Sorted ids of the profiles that belong to the default (required) package."""
+    return sorted(pid for pid, d in profiles.items() if d.get("release_inclusion") == "required")
+
+
+def optional_ids(profiles):
+    """Sorted ids of the optional profiles (explicit single-profile builds only)."""
+    return sorted(pid for pid, d in profiles.items() if d.get("release_inclusion") == "optional")
+
+
 def validate_profile(pid, doc):
     e = []
     def chk(cond, msg):
@@ -41,6 +54,7 @@ def validate_profile(pid, doc):
             e.append(pid + ": " + msg)
     chk(doc.get("schema_version") == 2, "schema_version must be 2")
     chk(doc.get("profile_id") == pid, "profile_id/directory mismatch")
+    chk(doc.get("release_inclusion") in INCLUSION, "release_inclusion must be required or optional")
     sel = doc.get("selector")
     sel = sel if isinstance(sel, dict) else {}
     chk(sel.get("source") == "/ifs/lsd.jxe" and sel.get("algorithm") == "sha256", "selector must be sha256 of /ifs/lsd.jxe")
@@ -116,12 +130,18 @@ def self_test():
     assert profiles and not validate_all(profiles), validate_all(profiles)
     base = copy.deepcopy(profiles)
     sk, s9, s8 = "skoda-mu1440-p4526", "seat-mu1447-p4709", "seat-mu1409-p4708"
+    assert required_ids(profiles) == sorted((sk, s9, s8)), "required package must stay the three beta profiles"
+    assert not set(required_ids(profiles)) & set(optional_ids(profiles))
     def bad(fn, needle):
         p = copy.deepcopy(base)
         fn(p)
         errs = validate_all(p)
         assert any(needle in x for x in errs), (needle, errs)
     bad(lambda p: p[s9]["selector"].update(evidence="bogus"), "evidence invalid")
+    bad(lambda p: p[s9].update(release_inclusion="maybe"), "release_inclusion")
+    for opt in optional_ids(profiles):
+        # An optional profile without a measured selector must never be install-enabled.
+        bad(lambda p: p[opt]["selector"].update(install_enabled=True), "inconsistent")
     bad(lambda p: p[s8]["selector"].update(evidence="profile_source_unverified", install_enabled=True), "inconsistent")
     disabled = copy.deepcopy(base)
     disabled[sk]["selector"]["install_enabled"] = False
