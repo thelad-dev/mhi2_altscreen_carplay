@@ -39,6 +39,13 @@ done
 "$CC" -std=c99 -Wall -Wextra -Werror -pthread -I"$G/include" tests/seat_zoom_auto_context_test.c \
   "$G/src/alt111_zoom.c" -o "$OUT/seat_zoom_auto_context"
 "$OUT/seat_zoom_auto_context"
+# Display-size-aware ViewArea/SafeArea defaults (1010x376 reference stays unchanged, 800x480 candidate, HOST-ONLY).
+# The test includes the target adapter itself, so the same existing diagnostics as gen2_settings_session stay visible.
+"$CC" "${F[@]}" -Wno-error=unused-result -Wno-error=format-truncation -Wno-unused-function "${I[@]}" \
+  "$G/tests/test_gen2_geometry.c" "${CORE[@]}" "${PURE[@]}" -pthread -ldl -lm -o "$OUT/gen2_geometry"
+"$OUT/gen2_geometry" modules/navigation/source/platform-defaults/vw-mu1367.conf
+python3 -B "$G/tests/test_geometry_profile_files.py"
+python3 -B "$G/tests/test_gen2_safearea_canvas.py"
 bash tools/test_alt111_zoom_host.sh
 python3 -B tests/alt111_settings_integration.py
 python3 -B tests/seat_mu1409_platform_defaults_test.py

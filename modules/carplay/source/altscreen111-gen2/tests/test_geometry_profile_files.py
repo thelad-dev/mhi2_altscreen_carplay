@@ -79,4 +79,3 @@ assert (base["ALTSCREEN111_WIDTH"], base["ALTSCREEN111_HEIGHT"]) == ("1010", "37
 assert (alt["ALTSCREEN111_WIDTH"], alt["ALTSCREEN111_HEIGHT"]) == ("800", "480")
 assert alt["ALTSCREEN111_FPS"] == "30"
 print("GEOMETRY_PROFILE_FILES_TEST=PASS")
-sys.exit(0)
