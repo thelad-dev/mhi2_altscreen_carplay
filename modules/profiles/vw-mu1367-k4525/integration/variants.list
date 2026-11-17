@@ -1,9 +1,11 @@
 # target stock-sha expected-patched-sha transform-file transform-sha mode
 # VW MU1367 (working name vw-mu1367-k4525, firmware MHI2_ER_VWG13_K4525_MU1367 [Unverifiziert]).
-# Every hash is MISSING_INPUT: no stock file of this firmware has been measured. Do not copy the Skoda
-# or SEAT hashes and do not guess. [Spekulation] usblauncher_otg.lua and smartphone_integrator.json may be
-# identical to the MU1440/MU1409 stock files (SEAT: lua byte-identical, json differs only in the
+# MISSING_INPUT: no stock file of this firmware has been measured, so there are deliberately NO rows here.
+# The package validator requires 64-hex SHA-256 values in every row, therefore a placeholder row would
+# make any single-profile package invalid; an empty list keeps the installer blocked. Do not copy the
+# Skoda or SEAT hashes and do not guess. [Spekulation] usblauncher_otg.lua and smartphone_integrator.json
+# may be identical to the MU1440/MU1409 stock files (SEAT: lua byte-identical, json differs only in the
 # #<genlastmodification> header); only a measurement on the unit decides that.
-# Fill in rows only from measured stock bytes and host awk outputs; until then the installer must block.
-/mnt/system/etc/usblauncher_otg.lua MISSING_INPUT MISSING_INPUT profiles/vw-mu1367-k4525/integration/lua-rgi.awk MISSING_INPUT 644
-/mnt/system/etc/eso/production/smartphone_integrator.json MISSING_INPUT MISSING_INPUT profiles/vw-mu1367-k4525/integration/si-carplay.awk MISSING_INPUT 644
+# Planned rows (add only from measured stock bytes and host awk outputs):
+#   /mnt/system/etc/usblauncher_otg.lua                          <stock> <patched> profiles/vw-mu1367-k4525/integration/lua-rgi.awk       <awk-sha> 644
+#   /mnt/system/etc/eso/production/smartphone_integrator.json    <stock> <patched> profiles/vw-mu1367-k4525/integration/si-carplay.awk     <awk-sha> 644

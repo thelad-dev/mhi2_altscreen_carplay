@@ -10,13 +10,13 @@
   "selector": {
     "source": "/ifs/lsd.jxe",
     "algorithm": "sha256",
-    "digest": "MISSING_INPUT",
+    "digest": "0000000000000000000000000000000000000000000000000000000000000000",
     "evidence": "none",
     "install_enabled": false
   },
   "firmware_check": {
     "source": null,
-    "expected": "MISSING_INPUT",
+    "expected": null,
     "status": "to_define"
   },
   "hmi": {
@@ -48,7 +48,7 @@
     "shared_source": "modules/menu/source",
     "firmware_specific_updates_supported": true,
     "adapter_status": "none",
-    "adapter_note": "java-adapter-improvements-expected"
+    "adapter_note": "missing-input-no-adapter"
   },
   "groups": [
     "hmi",
@@ -56,5 +56,12 @@
     "display",
     "input",
     "integration"
+  ],
+  "missing_input": [
+    "selector.digest (all-zero sentinel = MISSING_INPUT, matches no real lsd.jxe)",
+    "firmware_check.source and firmware_check.expected (null = MISSING_INPUT)",
+    "hmi.api_jar_sha256",
+    "integration/variants.list stock and patched hashes (no rows by design)",
+    "MU1367 wheel key codes (SEAT wheel zoom stays off)"
   ]
 }

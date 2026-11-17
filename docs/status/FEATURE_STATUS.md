@@ -22,7 +22,7 @@ The same feature can have **UNIT evidence for an older candidate** and only **SO
 | [SEAT MU1409 P4708](../../modules/profiles/seat-mu1409-p4708/) | Exact JXE fingerprint, source Java adapter and shared multi-profile assembly paths | Independent project-specific vehicle approval **not recorded**; community reports are third-party evidence | Exact J9 build and OEM widget/skin rendering, focus/back, arrows, input, video and rollback |
 | [SEAT MU1447 P4709](../../modules/profiles/seat-mu1447-p4709/) | Exact JXE fingerprint, own adapter lineage, `image_index_offset=6` in profile configuration | No complete project-specific vehicle acceptance | J9/menu build, firmware-specific offsets and complete end-to-end vehicle verification |
 
-All three profile selectors are enabled in [profile data](../../modules/profiles/) for the planned beta. **Selector enabled ≠ tested, installed or released.** `P4708_1` is an unknown separate fingerprint unless measured and explicitly added. [Full compatibility matrix](../testing/COMPATIBILITY_MATRIX.md).
+All three required profile selectors are enabled in [profile data](../../modules/profiles/) for the planned beta. The optional [VW MU1367 K4525 placeholder](../../modules/profiles/vw-mu1367-k4525/) is outside that set: no selector hash, installation disabled, SOURCE/BUILD-HOST packaging contract only, no unit or vehicle evidence. **Selector enabled ≠ tested, installed or released.** `P4708_1` is an unknown separate fingerprint unless measured and explicitly added. [Full compatibility matrix](../testing/COMPATIBILITY_MATRIX.md).
 
 ## Feature-level status
 

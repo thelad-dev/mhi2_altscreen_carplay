@@ -30,8 +30,9 @@ BEGIN {
     if (fps == "") fps = "30"
     if (autoshow == "") autoshow = "0"
     if (url == "") url = "maps:/car/instrumentcluster"
-    # Steering-wheel zoom bridge flag (GEN2, env-gated; Skoda never sets it). Kept at the SEAT value as the shared-transform default; [Unverifiziert] whether MU1367 wants it.
-    if (seatzoom == "") seatzoom = "1"
+    # Steering-wheel zoom bridge flag (GEN2, env-gated; Skoda never sets it). Default 0 (off) until the MU1367
+    # wheel key codes are measured: [Unverifiziert] whether MU1367 uses the SEAT code mapping, so the SEAT path is not enabled by guess.
+    if (seatzoom == "") seatzoom = "0"
     in_children = 0; in_carplay = 0; patched = 0; foreign = 0
 }
 {

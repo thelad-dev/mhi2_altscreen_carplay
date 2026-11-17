@@ -3,8 +3,10 @@
 """Deterministic assembler for the modular MIBR-CarPlay package ZIP.
 
 Default: ONE three-profile beta package (Skoda MU1440 P4526, SEAT MU1409 P4708,
-SEAT MU1447 P4709). ``--profiles X --scope single-profile`` builds a
-single-profile package for explicit test use only.
+SEAT MU1447 P4709), i.e. every profile with ``release_inclusion: required``.
+``--profiles X --scope single-profile`` builds a single-profile package for explicit
+test use only; this is also the only way to package an ``optional`` profile (for
+example vw-mu1367-k4525), which is never part of the default package.
 
 Inputs
   --native-dir  build-output layout: bin/mu1440-source, bin/gen2, bin/support-tools,
@@ -373,7 +375,7 @@ def select_profiles(repo, wanted):
     unknown = sorted(set(wanted or ()) - set(docs))
     if unknown:
         raise AssembleError("unknown profile: " + ", ".join(unknown))
-    return {pid: docs[pid] for pid in sorted(wanted or docs)}
+    return {pid: docs[pid] for pid in sorted(wanted or check_profiles.required_ids(docs))}
 
 
 def assemble(native, repo=ROOT, installer=None, hmi_dir=None, profiles=None, scope=None,
@@ -389,8 +391,9 @@ def assemble(native, repo=ROOT, installer=None, hmi_dir=None, profiles=None, sco
         raise AssembleError("unknown scope: %r" % (scope,))
     if scope == SCOPE_VALUE and len(selected) != 1:
         raise AssembleError("single-profile scope requires exactly one profile")
-    if scope is None and set(selected) != set(check_profiles.load_profiles(repo)):
-        raise AssembleError("a profile subset requires --scope single-profile (one profile only)")
+    if scope is None and set(selected) != set(check_profiles.required_ids(check_profiles.load_profiles(repo))):
+        raise AssembleError("a profile subset or an optional profile requires --scope single-profile "
+                            "(one profile only)")
     dirty = bool(git(repo, "status", "--porcelain", "--untracked-files=no"))
     if dirty and not allow_dirty:
         raise AssembleError("repository has uncommitted tracked changes (use --allow-dirty)")
@@ -518,6 +521,8 @@ def assemble(native, repo=ROOT, installer=None, hmi_dir=None, profiles=None, sco
         root = "profiles/%s/" % pid
         pm = profile_manifests.setdefault(pid, [])
         for rel in git(repo, "ls-files", "modules/profiles/" + pid).split("\n"):
+            if not rel:
+                raise AssembleError("profile directory has no tracked files: " + pid)
             sub = rel[len("modules/profiles/%s/" % pid):]
             # The checked-in reference JAR is not a second package payload.
             # Package only the freshly built profile JAR supplied via --hmi-dir.
@@ -557,7 +562,10 @@ def assemble(native, repo=ROOT, installer=None, hmi_dir=None, profiles=None, sco
 
     listing = generate_profiles_list.render_list(selected)
     disk = installer / "config/profiles.list"
-    if scope is None and disk.is_file() and disk.read_text() != listing:
+    # The committed list covers every profile (optional ones included); the package gets
+    # only the packaged profiles.
+    full_listing = generate_profiles_list.render_list(check_profiles.load_profiles(repo))
+    if scope is None and disk.is_file() and disk.read_text() != full_listing:
         raise AssembleError("installer/config/profiles.list drifts from profile.json "
                             "(run tools/release/generate_profiles_list.py --write)")
     gen("installer/config/profiles.list", listing)
@@ -779,6 +787,19 @@ def self_test():
         assert om["scope"] == SCOPE_VALUE and om["profiles"] == ["skoda-mu1440-p4526"]
         raises(AssembleError, lambda: assemble(native, profiles=["skoda-mu1440-p4526"], **kw))
         raises(AssembleError, lambda: assemble(native, profiles=["nope"], scope=SCOPE_VALUE, **kw))
+        # optional profiles: never in the default package, only via explicit single-profile scope
+        docs = check_profiles.load_profiles()
+        optional = check_profiles.optional_ids(docs)
+        assert not set(optional) & set(meta["profiles"]), "optional profile leaked into default package"
+        for opt in optional:
+            raises(AssembleError, lambda: assemble(native, hmi_dir=hmi, profiles=[opt], **kw))
+            raises(AssembleError, lambda: assemble(native, hmi_dir=hmi, profiles=sorted(meta["profiles"]) + [opt], **kw))
+            ofiles, ometa = assemble(native, hmi_dir=hmi, profiles=[opt], scope=SCOPE_VALUE, **kw)
+            assert ometa["profiles"] == [opt] and ometa["scope"] == SCOPE_VALUE
+            assert ometa["profile_info"][opt]["install_enabled"] is False
+            rows = [l for l in ofiles["installer/config/profiles.list"][0].decode().splitlines()
+                    if l and not l.startswith("#")]
+            assert len(rows) == 1 and rows[0].split()[1] == opt and rows[0].split()[3] == "0", rows
         # missing native binary and provenance fail hard
         (native / "bin/mu1440-source/parity-session").unlink()
         e = raises(MissingInput, lambda: assemble(native, hmi_dir=hmi, **kw))
@@ -800,7 +821,8 @@ def main(argv=None, default_profiles=None, default_scope=None):
     ap.add_argument("--repo", type=Path, default=ROOT)
     ap.add_argument("--installer-dir", type=Path, help="default: <repo>/installer")
     ap.add_argument("--profiles", nargs="+", default=default_profiles,
-                    help="profile ids (default: all profiles)")
+                    help="profile ids (default: all required profiles; optional profiles "
+                         "need --scope single-profile)")
     ap.add_argument("--scope", choices=[SCOPE_VALUE], default=default_scope,
                     help="single-profile: explicit test package with exactly one profile")
     ap.add_argument("--menu-jar", type=Path, help="legacy: HMI JAR for a single-profile package")

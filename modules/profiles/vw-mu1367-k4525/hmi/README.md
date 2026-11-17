@@ -4,7 +4,7 @@ Adapter scaffold for the optional VW MU1367 (firmware train K4525) profile. It i
 
 What is here:
 
-- `oem-anchors.json` reuses the MU1440 anchor set (`anchors_from`). [Unverified] Whether those exact anchors match this firmware is undecided until the real `lsd.jar` has been compared.
+- `oem-anchors.json` reuses the MU1440 anchor set (`anchors_from`). [Unverifiziert] Whether those exact anchors match this firmware is undecided until the real `lsd.jar` has been compared.
 - `java/de/mibr/hmi/MibrVwMu1367Profile.java` extends the MU1440 adapter and only changes the profile id. View id, tile geometry and image offset are inherited and unverified.
 
 MISSING_INPUT (nothing is substituted, no OEM file is stored in this repository):

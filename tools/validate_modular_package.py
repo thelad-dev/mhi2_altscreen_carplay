@@ -26,6 +26,9 @@ from check_mu1440_target_shell import scan_awk_text, scan_text  # noqa: E402
 
 PREFIX = "MIBR-CarPlay/"
 PROFILES = {"skoda-mu1440-p4526", "seat-mu1409-p4708", "seat-mu1447-p4709"}
+# Optional profiles are never part of the default package; they are valid only as the
+# single declared profile of an explicit single-profile test package.
+OPTIONAL_PROFILES = {"vw-mu1367-k4525"}
 SINGLE_SCOPE = "single-profile"
 TRANSFORM_SUFFIXES = (".awk", ".sed", ".block", ".patch", ".ksh", ".sh")
 TARGET_SHELL_SUFFIXES = (".sh", ".ksh")
@@ -65,7 +68,7 @@ def is_sha(value):
 
 
 def package_profiles(meta):
-    """Expected profile set: all three by default, or the declared single profile."""
+    """Expected profile set: all three required by default, or the declared single profile."""
     scope = meta.get("scope")
     if scope is None:
         check(set(meta["profiles"]) == PROFILES, "unexpected profile set")
@@ -74,7 +77,7 @@ def package_profiles(meta):
     declared = meta["profiles"]
     check(isinstance(declared, list) and len(declared) == 1,
           "single-profile scope requires exactly one profile")
-    check(declared[0] in PROFILES, "unknown profile: %r" % (declared[0],))
+    check(declared[0] in PROFILES | OPTIONAL_PROFILES, "unknown profile: %r" % (declared[0],))
     return set(declared)
 
 
@@ -447,6 +450,17 @@ def self_test():
         validate(path)
         write_zip(path, fixture_files())
         validate(path)  # default three-profile contract unchanged
+        # Optional profile: valid as an explicit single-profile package (install disabled),
+        # never accepted inside the default three-profile package.
+        for opt in sorted(OPTIONAL_PROFILES):
+            write_zip(path, fixture_files(opt, enabled={opt: False}))
+            validate(path)
+        # The constants must follow release_inclusion in modules/profiles/*/profile.json.
+        import check_profiles
+        docs = check_profiles.load_profiles()
+        if set(check_profiles.required_ids(docs)) != PROFILES or \
+                set(check_profiles.optional_ids(docs)) != OPTIONAL_PROFILES:
+            raise RuntimeError("PROFILES/OPTIONAL_PROFILES drift from profile.json release_inclusion")
 
         def sealed(mutate, profiles=(one,), scope=SINGLE_SCOPE):
             f = fixture_files(one)
@@ -460,6 +474,10 @@ def self_test():
         reject("single scope, three profiles", "exactly one profile",
                sealed(lambda f: None, profiles=sorted(PROFILES)))
         reject("unknown scope", "unknown package scope", sealed(lambda f: None, scope="bogus"))
+        reject("optional profile added to the default package", "unexpected profile set",
+               sealed(lambda f: None, profiles=sorted(PROFILES | OPTIONAL_PROFILES), scope=None))
+        reject("optional profile with install enabled but no scope", "unexpected profile set",
+               sealed(lambda f: None, profiles=sorted(OPTIONAL_PROFILES), scope=None))
         reject("three profiles without scope, one declared", "unexpected profile set",
                sealed(lambda f: None, scope=None))
         good = "/x/v1 %s %s %sintegration/si.awk %s 644\n" % (sha(b"stock"), sha(b"patched"), root,
