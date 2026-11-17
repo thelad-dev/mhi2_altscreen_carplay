@@ -46,7 +46,7 @@ Completed baselines:
 | `MHI2_ER_VWG11_K3342_MU1427` | profile-mapped; complete AirPlay file equals Audi MU1438 | not vehicle-tested |
 | `MHI2_ER_SEG11_P4709_MU1447` | profile-mapped; several layers MU1440-nearest | not vehicle-tested |
 | `MHI2_ER_SKG13_P4526_MU1440` | profile-mapped and vehicle-proven reference | **supported reference target only** |
-| `MHI2_ER_VWG13_K4525_MU1367` | profile-mapped; AirPlay/config/JXE strongly MU1440-related | not vehicle-tested |
+| `MHI2_ER_VWG13_K4525_MU1367` | profile-mapped; AirPlay/config/JXE strongly MU1440-related; optional placeholder profile `vw-mu1367-k4525` (install disabled, selector hash missing, outside the required package) | not vehicle-tested |
 
 The main static findings are documented in
 [MHI2 cross-firmware implementation profile map](../research/firmware/MHI2_FIRMWARE_PROFILE_MAP_2026-09-28.md).

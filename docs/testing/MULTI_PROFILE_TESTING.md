@@ -46,6 +46,8 @@ and project source/build inputs in the same ZIP with a separate source inventory
 RGI route-guidance source is already published under `modules/navigation/source`;
 album-art is not part of this candidate.
 
+**Optional profile (not part of the beta set).** `vw-mu1367-k4525` is an optional placeholder with `install_enabled=false` and no selector hash (`MISSING_INPUT`). Host checks cover only the packaging contract (BUILD/HOST): default package excludes it, an explicit single-profile package carries an install-disabled row, and `installer/select-profile.ksh` refuses it (exit 6) or an unknown hash (exit 4) before any write. See `tests/release/test_optional_profile.py`. There is no UNIT or RELEASE evidence for this profile; a first unit test needs the exact firmware string and `/ifs/lsd.jxe` hash read on the unit, a read-only preflight, and an external power supply for any write.
+
 This documentation does not yet offer a fully built and verified three-platform beta ZIP or
 OEM-derived files. A distributable package requires provenance-cleared contents,
 accurate per-component source/build coverage and its own checks. Retained helper

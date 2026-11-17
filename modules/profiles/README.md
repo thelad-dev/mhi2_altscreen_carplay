@@ -8,11 +8,12 @@
 | `seat-mu1409-p4708` | `MHI2_ER_SEG11_P4708_MU1409` | `25b9f1285445de0193c1d869a734230d7db95363957603598a6ede09af904403` | firmware_corpus | yes | `cda36398c6d8b57e5f77b1fa68258ea5df3357c2e2f3b6b4d9be60dfade1a06f` (confirmed) |
 | `seat-mu1447-p4709` | `MHI2_ER_SEG11_P4709_MU1447` | `945586fbede2fe53b5b41d7c10490641ff71fcc9581fb237cf40328f450cb22e` | firmware_corpus | yes | `203087feace6228dc6544f01d10552c369fff1bf2ea5782d324fa4db1ce39c88` (confirmed) |
 | `skoda-mu1440-p4526` | `MHI2_ER_SKG13_P4526_MU1440` | `a55d9cfb69c5756f8202b7f7aa4079d4d5b637ae4c2fd0fe723f1d6816cbeea8` | unit_measured | yes | `57dc5e9313ef8a59403a17b3a6726f0852f6ac68cc72e42ef2a1ca530aba3ae7` (confirmed) |
+| `vw-mu1367-k4525` | `MHI2_ER_VWG13_K4525_MU1367` | `0000000000000000000000000000000000000000000000000000000000000000` | none | no | to confirm |
 <!-- profiles-table:end -->
 
 The P4709 digest is taken from the existing exact JXE corpus matrix. The P4708 digest is recorded in profile source as measured on (not independently verified in this repository) the original `/ifs/lsd.jxe` (55,712,590 bytes) extracted from the P4708 firmware archive; the 50 and 70 variants carry the identical file. P4709 is a different file (55,712,574 bytes). The firmware labelled `P4708_1` has not been hashed yet and must not be assumed equal. Do not fabricate a digest or treat these as the same file.
 
-Each of the three profile directories has exactly the same `hmi/`, `icons/`, `display/`, `input/` and `integration/` groups. Shared CarPlay, Broker, Menu and Navigation code is published once, with one settings registry and one broker. Java adapter repairs and optimization happen in their target profile without forking shared menu/business logic.
+Each of the three required profile directories has exactly the same `hmi/`, `icons/`, `display/`, `input/` and `integration/` groups. Shared CarPlay, Broker, Menu and Navigation code is published once, with one settings registry and one broker. Java adapter repairs and optimization happen in their target profile without forking shared menu/business logic.
 
 Host-side `python3 tools/release/plan_multi_profile_beta.py --self-test` emits the mandatory three-profile release input. **All three exact JXE selector fingerprints and API JAR fingerprints are recorded, and the selector is enabled for each listed profile.** The external firmware-specific Java outputs and actual completed ZIP must still be built and validated before a genuinely installable beta is distributed. All three obey the same package-integrity, target-shell, reversible-installation and fingerprint rules. Firmware identification is not vehicle qualification.
 
@@ -23,8 +24,19 @@ This source integration does not claim a complete, validated and downloadable R3
 - The only automatic selector is the SHA-256 of `/ifs/lsd.jxe`; it must match exactly one profile in `installer/config/profiles.list` (generated from `profile.json`, see `installer/select-profile.ksh`).
 - The firmware/train string (read from the unit EEPROM at `3A0`, 19 bytes, as in `runtime/deployment/session.sh`) is a mandatory plausibility cross-check, not a second selector. Unknown, unreadable, ambiguous or contradictory input means no install write.
 - The API `lsd.jar` hash (`hmi.api_jar_sha256`, for the Java build) is a separate field and is **not** a selector. All three have confirmed input hashes; builds must verify their supplied input against the matching profile.
-- `install_enabled=true` for exactly the three listed profiles based on `unit_measured` or `firmware_corpus` input evidence. **This allows exact profile selection, not installation or physical-vehicle approval.** P4708_1 has no profile and is not implicitly supported.
+- `install_enabled=true` for exactly the three required profiles based on `unit_measured` or `firmware_corpus` input evidence. **This allows exact profile selection, not installation or physical-vehicle approval.** P4708_1 has no profile and is not implicitly supported.
 - The MU1409 Java adapter source is in `hmi/java`, and MU1447 reuses its lineage (`adapter_from`) with image index offset 6. The `java.adapter_status` field currently still says `none` for the SEAT profiles: this metadata does **not** negate the checked-in source; reconcile metadata with the actual build/qualification evidence rather than claiming a completed J9 build.
+
+## Optional profile `vw-mu1367-k4525` (placeholder, not part of the required package)
+
+`release_inclusion` is `required` for the three beta profiles and `optional` for `vw-mu1367-k4525` (working name for firmware `MHI2_ER_VWG13_K4525_MU1367`; the name is [Unverified] until the train string is read from a unit). The optional profile is listed in `installer/config/profiles.list` and in the table above, but:
+
+- it is **not** part of the default package: `tools/release/build_modular.py` packages only `required` profiles by default, and `tools/validate_modular_package.py` rejects an optional profile inside a default (three-profile) package;
+- it can only be packaged explicitly with `--profiles vw-mu1367-k4525 --scope single-profile` (developer test package);
+- `install_enabled=false` and the selector digest is `MISSING_INPUT` (an all-zero placeholder that matches no real file). Until a `unit_measured` or `firmware_corpus` digest is recorded, `installer/select-profile.ksh` exits 6 (install disabled) for the placeholder row and exits 4 for any unknown hash; `installer/mibr-install.ksh` defaults to the read-only `--check` preflight and stops with exit 3 on either selector result before any write;
+- the Java HMI adapter, HMI inputs and OEM stock hashes are `MISSING_INPUT`; no other profile's binary is substituted.
+
+Evidence level: SOURCE and BUILD/HOST only. Nothing about this profile is PACKAGE-validated on a real build, UNIT-tested or RELEASE-approved. Writing to a unit always requires an external power supply and an explicit decision by the person doing the test.
 
 ## Known discrepancy: /ifs vs /mnt/app/eso (K8)
 
