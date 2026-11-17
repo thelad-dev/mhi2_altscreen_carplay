@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "profile_id": "vw-mu1367-k4525",
+  "adapter_class": "de.mibr.hmi.MibrVwMu1367Profile",
+  "adapter_from": [],
+  "anchors_from": "skoda-mu1440-p4526",
+  "pass_label": "MU1367_OEM_SOURCE_PATCH"
+}

@@ -19,6 +19,13 @@ PROFILES = (
     "seat-mu1447-p4709",
 )
 HMI_ROOTS = tuple(f"modules/profiles/{profile}/hmi" for profile in PROFILES)
+# Optional profiles are not part of the required release. Their HMI tree is
+# locked only through the lock's "optional_hmi_roots" key, and an existing but
+# unlocked optional HMI tree fails closed.
+OPTIONAL_PROFILES = (
+    "vw-mu1367-k4525",
+)
+OPTIONAL_HMI_ROOTS = tuple(f"modules/profiles/{profile}/hmi" for profile in OPTIONAL_PROFILES)
 EXCLUDED_JAR = "prebuilt/MIBR-CarPlay.jar"
 REQUIRED_NON_HMI = {
     "modules/menu/source", "settings/registry.json",
@@ -44,6 +51,7 @@ def load_lock(path=LOCK_PATH):
         raise LockError("MENU_SOURCE_LOCK_SCHEMA_UNSUPPORTED")
     if tuple(lock.get("hmi_roots", ())) != HMI_ROOTS:
         raise LockError("MENU_SOURCE_LOCK_HMI_ROOTS_INVALID")
+    optional_roots(lock)
     objects = lock.get("git_objects")
     if not isinstance(objects, dict) or not objects:
         raise LockError("MENU_SOURCE_LOCK_EMPTY")
@@ -56,9 +64,18 @@ def load_lock(path=LOCK_PATH):
     return lock
 
 
-def expected_hmi_paths(repo, head="HEAD"):
+def optional_roots(lock):
+    """Optional HMI roots this lock covers, in canonical order."""
+    declared = lock.get("optional_hmi_roots", [])
+    if (not isinstance(declared, list) or len(set(declared)) != len(declared) or
+            not set(declared).issubset(OPTIONAL_HMI_ROOTS)):
+        raise LockError("MENU_SOURCE_LOCK_OPTIONAL_ROOTS_INVALID")
+    return tuple(root for root in OPTIONAL_HMI_ROOTS if root in declared)
+
+
+def expected_hmi_paths(repo, head="HEAD", roots=HMI_ROOTS):
     expected = set()
-    for root in HMI_ROOTS:
+    for root in roots:
         try:
             paths = git(repo, "ls-tree", "-r", "--name-only", head, "--", root).splitlines()
         except subprocess.CalledProcessError as exc:
@@ -76,15 +93,20 @@ def verify(repo=ROOT, lock=None):
         raise LockError("MENU_SOURCE_LOCK_SCHEMA_UNSUPPORTED")
     if tuple(lock.get("hmi_roots", ())) != HMI_ROOTS:
         raise LockError("MENU_SOURCE_LOCK_HMI_ROOTS_INVALID")
+    locked_optional = optional_roots(lock)
+    for root in OPTIONAL_HMI_ROOTS:
+        if root not in locked_optional and git(repo, "ls-tree", "-r", "--name-only", "HEAD", "--", root).strip():
+            raise LockError("MENU_SOURCE_OPTIONAL_PROFILE_UNLOCKED: " + root)
+    roots = HMI_ROOTS + locked_optional
     objects = lock["git_objects"]
-    hmi_expected = expected_hmi_paths(repo)
-    hmi_locked = {path for path in objects if any(path.startswith(root + "/") for root in HMI_ROOTS)}
+    hmi_expected = expected_hmi_paths(repo, roots=roots)
+    hmi_locked = {path for path in objects if any(path.startswith(root + "/") for root in roots)}
     if hmi_locked != hmi_expected:
         missing = sorted(hmi_expected - hmi_locked)
         extra = sorted(hmi_locked - hmi_expected)
         raise LockError("MENU_SOURCE_HMI_PATH_SET_MISMATCH missing=" + repr(missing[:8]) +
                         " extra=" + repr(extra[:8]))
-    for root in HMI_ROOTS:
+    for root in roots:
         if any(path.startswith(root + "/prebuilt/") for path in objects):
             raise LockError("MENU_SOURCE_LOCK_CONTAINS_PREBUILT_PATH")
 
@@ -96,13 +118,13 @@ def verify(repo=ROOT, lock=None):
             actual = "<missing>"
         if actual != expected:
             changed.append(path)
-    scoped = sorted(set(objects) | set(HMI_ROOTS))
+    scoped = sorted(set(objects) | set(roots) | set(OPTIONAL_HMI_ROOTS))
     dirty = git(repo, "status", "--porcelain", "--untracked-files=all", "--", *scoped)
     if dirty:
         changed.extend("working-tree: " + line for line in dirty.splitlines())
     if changed:
         raise LockError("MENU_SOURCE_LOCK_STALE: " + ", ".join(changed[:16]))
-    return {"hmi_roots": list(HMI_ROOTS), "locked_objects": len(objects), "status": "PASS"}
+    return {"hmi_roots": list(roots), "locked_objects": len(objects), "status": "PASS"}
 
 
 def main():
