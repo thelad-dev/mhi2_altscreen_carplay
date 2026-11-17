@@ -1,0 +1,60 @@
+{
+  "schema_version": 2,
+  "profile_id": "vw-mu1367-k4525",
+  "brand": "vw",
+  "firmware": "MHI2_ER_VWG13_K4525_MU1367",
+  "release_channel": "experimental",
+  "release_inclusion": "optional",
+  "structure_acceptance": "assumed",
+  "final_system_test": "pending",
+  "selector": {
+    "source": "/ifs/lsd.jxe",
+    "algorithm": "sha256",
+    "digest": "MISSING_INPUT",
+    "evidence": "none",
+    "install_enabled": false
+  },
+  "firmware_check": {
+    "source": null,
+    "expected": "MISSING_INPUT",
+    "status": "to_define"
+  },
+  "hmi": {
+    "api_jar_sha256": null,
+    "api_jar_status": "to_confirm",
+    "adapter": null,
+    "adapter_from": null,
+    "image_index_offset": null
+  },
+  "evidence": [
+    {
+      "path": "/ifs/lsd.jxe",
+      "sha256": null,
+      "kind": "none"
+    }
+  ],
+  "display": {
+    "target_width": 800,
+    "target_height": 480,
+    "status": "source_derived_unverified"
+  },
+  "common_modules": [
+    "carplay",
+    "broker",
+    "menu",
+    "navigation"
+  ],
+  "java": {
+    "shared_source": "modules/menu/source",
+    "firmware_specific_updates_supported": true,
+    "adapter_status": "none",
+    "adapter_note": "java-adapter-improvements-expected"
+  },
+  "groups": [
+    "hmi",
+    "icons",
+    "display",
+    "input",
+    "integration"
+  ]
+}
