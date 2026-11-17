@@ -7,6 +7,9 @@
     "modules/profiles/seat-mu1409-p4708/hmi",
     "modules/profiles/seat-mu1447-p4709/hmi"
   ],
+  "optional_hmi_roots": [
+    "modules/profiles/vw-mu1367-k4525/hmi"
+  ],
   "git_objects": {
     "modules/menu/source": "9cc9927c678f81bd5520fd1a8594d36938218ae4",
     "modules/profiles/seat-mu1409-p4708/hmi/README.md": "60b7b875247490aedd88473c65918b83622c253b",
@@ -21,6 +24,9 @@
     "modules/profiles/skoda-mu1440-p4526/hmi/README.md": "6011fb3833798946a374e48d26ff645151267a79",
     "modules/profiles/skoda-mu1440-p4526/hmi/oem-anchors.json": "1f12419faa9ee484cc99e7cdf2519cc53e6ac771",
     "modules/profiles/skoda-mu1440-p4526/profile.json": "622c2dd5da7f3d3dc7759e539f64ae1bb66702c7",
+    "modules/profiles/vw-mu1367-k4525/hmi/README.md": "42990ac34a376954a532bee53e72308b9a51ae34",
+    "modules/profiles/vw-mu1367-k4525/hmi/java/de/mibr/hmi/MibrVwMu1367Profile.java": "06e8d305e8f05613d2bdb0e81c73c1cc5c7d4a7d",
+    "modules/profiles/vw-mu1367-k4525/hmi/oem-anchors.json": "4119f25679c3810659d2201299573998f7b36449",
     "settings/registry.json": "73be7b9876ceb692b7031af3f1cf0c15aa729e2d"
   }
 }
